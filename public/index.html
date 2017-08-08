@@ -2,15 +2,17 @@
 <html>
   <head>
     <meta charset='utf-8'>
+    <meta name="google-signin-client_id" content="252128041239-s28dl89qsus19g8lof610racuc7tmpl9.apps.googleusercontent.com"/>
     <title>Learn JS!</title>
     <link href='//fonts.googleapis.com/css?family=Raleway:400,300,600' rel='stylesheet' type='text/css'>
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.2/normalize.min.css'>
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css'>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
     <script src='https://code.jquery.com/jquery-2.1.4.min.js'></script>
     <script src='/vendor.js'></script>
     <script src='/app.js'></script>
     <style type="text/css" media="all">
-      body { margin-top: 30px; }
+      body { margin-top: 50px; }
 
       .templates {
         display: none;
@@ -43,6 +45,10 @@
         text-decoration: underline;
       }
 
+      .navbar-links {
+        margin-top: 10px;
+      }
+
       .nav-container {
         padding-left: 60px;
         background-color: #666;
@@ -51,15 +57,29 @@
       .nav-container a {
         color: white;
       }
+
+      .navbar-padding {
+        padding-top: 7px;
+        display: inline-block;
+      }
+
+      .text-right {
+        text-align: right;
+      }
     </style>
   </head>
   <body>
     <div class="markup">
       <div class='nav-container no-select fixed-top u-full-width'>
-        <ul class='inline-list hover-links nav-list six columns'>
+        <ul class='inline-list hover-links nav-list six columns navbar-links'>
           <li><a class='text-lg' href="#">LearnJS</a></li>
           <li><a href="#problem-1">Start</a></li>
         </ul>
+        <div class="four columns text-right signin-bar">
+          <span class="navbar-padding">
+            <span class="g-signin2" data-onsuccess="googleSignIn"></span>
+          </span>          
+        </div>
       </div>
       <div class='view-container container'>
       </div>
@@ -86,6 +106,13 @@
               <p class="result"></p>
             </div>
           </form>
+        </div>
+        <div class="profile-view">
+          <h3>Your Profile</h3>
+          <div class="email"></div>          
+        </div>
+        <div class="profile-link navbar-padding-lg">
+          <a href="#profile"></a>
         </div>
         <div class="correct-flush">
           <span>Correct!</span>

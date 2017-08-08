@@ -2,10 +2,18 @@
 
 (function(global){
   let learnjs = {
+    poolId: 'ap-northeast-1:f5a1be1a-6696-44ac-99c3-4ef5f4d144ba',
+
     applyObject: (obj, view) => {
       for(const key in obj) {
         view.find(`[data-name="${key}"]`).text(obj[key]);
       }
+    },
+
+    addProfileLink: (profile) => {
+      const link = learnjs.templates('profile-link');
+      link.find('a').text(profile.email);
+      $('.signin-bar').prepend(link);
     },
 
     problemView: (number) => {
@@ -54,7 +62,8 @@
       const routes = {
         '': learnjs.landingView,
         '#': learnjs.landingView,
-        '#problem': learnjs.problemView
+        '#problem': learnjs.problemView,
+        '#profile': learnjs.profileView
       }
       const hashParts = hash.split('-');
       const viewFnc = routes[hashParts[0]];
@@ -64,9 +73,17 @@
       }
     },
 
+    profileView: () => {
+      const view = learnjs.templates('profile-view');
+      learnjs.identity.done(identity => {
+        view.find('.email').text(identity.email);
+      });
+    },
+
     appOnReady: () => {
       window.onhashchange = () => learnjs.showView(window.location.hash);
       learnjs.showView(window.location.hash);
+      learnjs.identity.done(learnjs.addProfileLink);
     },
 
     buildCorrectFlush: (problemNumber) => {
@@ -95,6 +112,19 @@
 
     triggerEvent: (event, args) => {
       $('.view-container>*').trigger(event, args);
+    },
+
+    awsRefresh: () => {
+      const deferred = new $.Deferred();
+      AWS.config.credentials.refresh(err => {
+        if(err) {
+          deferred.reject(err);
+        } else {
+          deferred.resolve(AWS.config.credentials.identifyId);
+        }
+      });
+
+      return deferred.promise();
     }
   }
 
@@ -109,5 +139,40 @@
     }
   ];
 
+  learnjs.identity = new $.Deferred();
+
+  const refresh = () => {
+    return gapi.auth2.getAuthInstance().signIn({
+      prompt: 'login'
+    })
+    .then(userUpdate => {
+      const creds = AWS.cofig.credentials;
+      const newToken = userUpdate.getAuthResponse().id_token;
+      creds.params.Logins['accounts.google.com'] = newToken;
+      return learnjs.awsRefresh();
+    });
+  }
+
   global.learnjs = learnjs;
+  global.googleSignIn = (googleUser) => {
+    const id_token = googleUser.getAuthResponse().id_token;
+    AWS.config.update({
+      region: 'ap-northeast-1',
+      credentials: new AWS.CognitoIdentityCredentials({
+        IdentityPoolId: learnjs.poolId,
+        Logins: {
+          'accounts.google.com': id_token
+        }
+      })
+    });
+
+    learnjs.awsRefresh()
+    .then(id => {
+      learnjs.identity.resolve({
+        id: id,
+        email: googleUser.getBasicProfile().getEmail(),
+        refresh: refresh
+      });
+    });
+  }
 })(this);
