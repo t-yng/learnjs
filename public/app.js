@@ -22,10 +22,10 @@
       const problem = learnjs.problems[number-1];
       const title = `Problem #${number}`;
       const resultFlush = view.find('.result');
+      const answer = view.find('.answer');
 
       const checkAnswer = () => {
-        const answer = view.find('.answer').val();
-        const test = problem.code.replace('__', answer) + '; problem();';
+        const test = problem.code.replace('__', answer.val()) + '; problem();';
         return eval(test);
       }
 
@@ -33,12 +33,19 @@
         if(checkAnswer()) {
           const correctFlush = learnjs.buildCorrectFlush(number);
           learnjs.flushElement(resultFlush, correctFlush);
+          learnjs.saveAnswer(number, answer.val());
         } else {
           learnjs.flushElement(resultFlush, 'Incorrect!');
         }
 
         return false;
       }
+
+      learnjs.fetchAnswer(number).then(data => {
+        if(data.Item) {
+          answer.val(data.Item.answer);
+        }
+      });
 
       view.find('.check-btn').on('click', onClickCheckAnswer);
       view.find('.title').text(title);
@@ -120,11 +127,81 @@
         if(err) {
           deferred.reject(err);
         } else {
-          deferred.resolve(AWS.config.credentials.identifyId);
+          deferred.resolve(AWS.config.credentials.identityId);
         }
       });
 
       return deferred.promise();
+    },
+
+    sendDbRequest: (req, retry) => {
+      const promise = new $.Deferred();
+      req.on('error', error => {
+        if(error.code === 'CredentialsError') {
+          learnjs.identity.then( identity => {
+            return identity.refresh().then(
+              () => retry(), 
+              (error) => promise.reject(error));
+          });
+        }
+        else {
+          promise.reject(error);
+        }
+      });
+
+      req.on('success', res => promise.resolve(res.data));
+
+      req.send();
+      return promise;
+    },
+
+    saveAnswer: (problemId, answer) => {
+      return learnjs.identity.then(identity => {
+        const db = new AWS.DynamoDB.DocumentClient();
+        const item = {
+          TableName: 'learnjs',
+          Item:{
+            userId: identity.id,
+            problemId: problemId,
+            answer: answer
+          }
+        };
+        return learnjs.sendDbRequest(db.put(item), () => {
+          return learnjs.saveAnswer(problemId, answer);
+        });
+      });
+    },
+
+    fetchAnswer: problemId => {
+      return learnjs.identity.then(identity => {
+        const db = new AWS.DynamoDB.DocumentClient();
+        const item = {
+          TableName: 'learnjs',
+          Key: {
+            userId: identity.id,
+            problemId: problemId
+          }
+        };
+        return learnjs.sendDbRequest(db.get(item), () => {
+          return learnjs.fetchAnswer(problemId);
+        })
+      })
+    },
+
+    countAnswer: problemId => {
+      return learnjs.identity.then(identity => {
+        const db = new AWS.DynamoDB.DocumentClient();
+        const params = {
+          TableName: 'learnjs',
+          Select: 'COUNT',
+          FilterExpression: 'problemId = :problemId',
+          ExpressionAttributeValues: {':problemId': problemId}
+        };
+
+        return learnjs.sendDbRequest(db.scan(params), () => {
+          return learnjs.countAnswer(problemId);
+        });
+      });
     }
   }
 
